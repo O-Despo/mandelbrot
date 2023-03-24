@@ -76,7 +76,7 @@ int processPixel(int xi, int yi){
     double x;
     double y;
 
-    double x0 = scaleX(xi); 
+    double x0 = scaleX(xi);
     double y0 = scaleY(yi); 
 
     while ((x2 + y2) <= 4 && iter < MAX_ITER){
@@ -86,7 +86,7 @@ int processPixel(int xi, int yi){
         y2 = y * y;
         iter+=1;
     }
-
+    
     return iter;
 }
 
@@ -112,16 +112,28 @@ int moveArrows(int i){
     return 0;
 }
 
+int reCalc(SDL_Surface *surface, Uint32 *buffer){
+    int offset;
+    Uint32 color;
+
+    SDL_LockSurface(surface);
+    
+    for(int x = 0; x < S_WIDTH; x++){
+        for(int y = 0; y < S_HEIGHT; y++){
+            offset = y * S_HEIGHT + x;
+            color = SDL_MapRGBA(surface->format, processPixel(x, y), 100, 0, 255);
+            buffer[offset] = color;
+        }
+    }
+
+    SDL_UnlockSurface(surface);
+    return 0;
+}
 int main(int argc,char *argv[]){
     bool quit = 0;
     bool focusChange = 1;
 
     SDL_Event event;
-
-    SDL_Point point = {
-        0,
-        0 
-    };
 
     int rectWidth = S_WIDTH/5;
     SDL_Rect cursorRect = {
@@ -136,21 +148,23 @@ int main(int argc,char *argv[]){
     memset(&app, 0, sizeof(App));
   
     sdlInit(&app);
-
-    BuffPoint pixelBuffer[S_WIDTH*S_HEIGHT];
+    
+    SDL_Surface * surface = SDL_CreateRGBSurface(0,S_WIDTH,S_HEIGHT,32,0,0,0,0);
+    SDL_Surface * winSur = SDL_GetWindowSurface(app.window);
 
     while(!quit){
-        //SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
-        //SDL_RenderClear(app.renderer);
- 
+        if(focusChange == 1){
+            SDL_BlitSurface(surface, NULL, winSur, NULL);
+            focusChange = 0;
+        }
+
         for(int x = 0; x < S_WIDTH; x++){
             for(int y = 0; y < S_HEIGHT; y++){
-                int iter = processPixel(x, y);
-                SDL_SetRenderDrawColor(app.renderer, 0, 0, iter, 255);
-                SDL_RenderDrawPoint(app.renderer, x, y);
+                //SDL_SetRenderDrawColor(app.renderer,  processPixel(x,y), 0, 0, 255);
+                //SDL_RenderDrawPoint(app.renderer, x, y);
             }
         }
-        
+
         while (SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT){
                 quit = 1;
@@ -160,6 +174,8 @@ int main(int argc,char *argv[]){
             }else if(event.type == SDL_KEYDOWN){ 
                 if(event.key.keysym.sym == SDLK_q){
                     quit = 1;
+                }else if(event.key.keysym.sym == SDLK_r){
+                    focusChange = 1;
                 }else if(event.key.keysym.sym == SDLK_SPACE){
                     double temp_xsl = scaleX(cursorRect.x);
                     double temp_xsu = scaleX(cursorRect.x + cursorRect.w);
@@ -170,6 +186,7 @@ int main(int argc,char *argv[]){
                     xsu = temp_xsu;
                     ysl = temp_ysl;
                     ysu = temp_ysu;
+                    focusChange = 1;
                 }else if(event.key.keysym.sym == SDLK_UP){
                     moveArrows('u');
                 }else if(event.key.keysym.sym == SDLK_DOWN){
@@ -181,11 +198,12 @@ int main(int argc,char *argv[]){
                 }
             }
         }
-
+        SDL_UpdateWindowSurface(app.window);
         SDL_SetRenderDrawColor(app.renderer, 255, 255, 255, 255);
         SDL_RenderDrawRect(app.renderer, cursorRectPointer); 
-
+        
         SDL_RenderPresent(app.renderer);
+        SDL_Delay(10);
     }
 
     SDL_Quit();
