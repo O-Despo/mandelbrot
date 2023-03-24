@@ -6,7 +6,7 @@
 
 #define S_WIDTH 500
 #define S_HEIGHT 500
-#define MAX_ITER 100
+#define MAX_ITER 250
 #define X_LOW -2.00
 #define X_UP 0.47
 #define Y_LOW -1.12
@@ -16,6 +16,12 @@ typedef struct {
     SDL_Renderer *renderer;
     SDL_Window *window;
 } App;
+
+typedef struct {
+    unsigned short int x;
+    unsigned short int y;
+    unsigned short int rgb;
+} BuffPoint;
 
 double xsl = X_LOW;
 double xsu = X_UP;
@@ -54,16 +60,11 @@ int sdlInit(App *app){
 }
 
 double scaleY(int y){
-    double scale_abs = fabs(ysu) + fabs(ysl);
-    double scale_div = S_HEIGHT/scale_abs;
-    return y/scale_div + ysl;
-
+    return y/(S_HEIGHT/fabs(ysu-ysl))+ ysl;
 }
 
 double scaleX(int x){
-    scale_div_x = S_WIDTH/scale_abs_x;
-    scale_abs_x = fabs(xsu) + fabs(xsl);
-    return (x/scale_div_x) + xsl;
+    return x/(S_WIDTH/fabs(xsu-xsl)) + xsl;
 }
 
 int processPixel(int xi, int yi){
@@ -89,6 +90,28 @@ int processPixel(int xi, int yi){
     return iter;
 }
 
+int moveArrows(int i){
+    if(i == 'l'){
+        double scale_abs_diff = fabs(xsu-xsl)/10;
+        xsu -= scale_abs_diff;
+        xsl -= scale_abs_diff;
+    } else if (i == 'r'){
+        double scale_abs_diff = fabs(xsu-xsl)/10;
+        xsu += scale_abs_diff;
+        xsl += scale_abs_diff;
+    } else if (i == 'd'){
+        double scale_abs_diff = fabs(ysu-ysl)/10;
+        ysu -= scale_abs_diff;
+        ysl -= scale_abs_diff;
+    } else if (i == 'u'){
+        double scale_abs_diff = fabs(ysu-ysl)/10;
+        ysu += scale_abs_diff;
+        ysl += scale_abs_diff;
+    }
+
+    return 0;
+}
+
 int main(int argc,char *argv[]){
     bool quit = 0;
     bool focusChange = 1;
@@ -100,7 +123,7 @@ int main(int argc,char *argv[]){
         0 
     };
 
-    int rectWidth = S_WIDTH/10;
+    int rectWidth = S_WIDTH/5;
     SDL_Rect cursorRect = {
         S_WIDTH/2 - rectWidth/2,
         S_HEIGHT/2 - rectWidth/2,
@@ -114,23 +137,18 @@ int main(int argc,char *argv[]){
   
     sdlInit(&app);
 
-    SDL_SetRenderDrawColor(app.renderer, 0, 255, 0, 255);
-    SDL_RenderClear(app.renderer);
-    SDL_RenderPresent(app.renderer);
+    BuffPoint pixelBuffer[S_WIDTH*S_HEIGHT];
 
     while(!quit){
-        SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
-        SDL_RenderClear(app.renderer);
+        //SDL_SetRenderDrawColor(app.renderer, 0, 0, 0, 255);
+        //SDL_RenderClear(app.renderer);
  
-        if(focusChange == 1){
-            for(int x = 0; x < S_WIDTH; x++){
-                for(int y = 0; y < S_HEIGHT; y++){
-                    int iter = processPixel(x, y);
-                    SDL_SetRenderDrawColor(app.renderer, iter*2, 0, 0, 255);
-                    SDL_RenderDrawPoint(app.renderer, x, y);
-                }
+        for(int x = 0; x < S_WIDTH; x++){
+            for(int y = 0; y < S_HEIGHT; y++){
+                int iter = processPixel(x, y);
+                SDL_SetRenderDrawColor(app.renderer, 0, 0, iter, 255);
+                SDL_RenderDrawPoint(app.renderer, x, y);
             }
-            focusChange = 1;
         }
         
         while (SDL_PollEvent(&event)) {
@@ -147,20 +165,28 @@ int main(int argc,char *argv[]){
                     double temp_xsu = scaleX(cursorRect.x + cursorRect.w);
                     double temp_ysl = scaleY(cursorRect.y);
                     double temp_ysu = scaleY(cursorRect.y + cursorRect.h);
-                    xsl = -1.0;
-                    xsu = 0;
-                    ysl = -1.0;
-                    ysu = 1.0;
+                     
+                    xsl = temp_xsl;
+                    xsu = temp_xsu;
+                    ysl = temp_ysl;
+                    ysu = temp_ysu;
+                }else if(event.key.keysym.sym == SDLK_UP){
+                    moveArrows('u');
+                }else if(event.key.keysym.sym == SDLK_DOWN){
+                    moveArrows('d');
+                }else if(event.key.keysym.sym == SDLK_LEFT){
+                    moveArrows('l');
+                }else if(event.key.keysym.sym == SDLK_RIGHT){
+                    moveArrows('r');
                 }
             }
         }
 
-        SDL_SetRenderDrawColor(app.renderer, 0, 255, 0, 255);
+        SDL_SetRenderDrawColor(app.renderer, 255, 255, 255, 255);
         SDL_RenderDrawRect(app.renderer, cursorRectPointer); 
+
         SDL_RenderPresent(app.renderer);
     }
 
     SDL_Quit();
 }
-
-
