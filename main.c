@@ -2,15 +2,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-#include "init.c"
 
 #define S_WIDTH 1920
 #define S_HEIGHT 1080
-#define MAX_ITER 125
-#define X_LOW -2.00
-#define X_UP 0.47
-#define Y_LOW -1.12
-#define Y_UP 1.12
+#define MAX_ITER 255
+#define X_LOW -2.10
+#define X_UP 0.57
+#define Y_LOW -1.22
+#define Y_UP 1.22
 
 typedef struct {
     SDL_Renderer *renderer;
@@ -29,7 +28,7 @@ int sdlInit(App *app){
     }
     
     app->window = SDL_CreateWindow("MANDLBROT", 
-            0, 0, S_WIDTH, S_HEIGHT, SDL_WINDOW_BORDERLESS);
+            0, 0, S_WIDTH, S_HEIGHT, SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN);
 
     if(app->window == NULL){
         SDL_Log("Could not create window: %s", SDL_GetError());
@@ -103,14 +102,15 @@ int moveArrows(int i){
 }
 
 int reCalc(int *buffer){
-    long offset;
+    unsigned long offset;
+    int *bc = buffer;
     int iter;
 
     for(int x = 0; x < S_WIDTH; x++){
         for(int y = 0; y < S_HEIGHT; y++){
             offset = x * S_WIDTH + y;
             iter = processPixel(x, y);
-            *(buffer+offset) = iter*2;
+            *(bc++) = iter;
         }
     }
 
@@ -123,12 +123,13 @@ int main(int argc,char *argv[]){
 
     SDL_Event event;
 
-    int rectWidth = S_WIDTH/5;
+    int rectWidth = S_WIDTH/3;
+    int rectHeight = S_HEIGHT/3;
     SDL_Rect cursorRect = {
         S_WIDTH/2 - rectWidth/2,
-        S_HEIGHT/2 - rectWidth/2,
+        S_HEIGHT/2 - rectHeight/2,
         rectWidth,
-        rectWidth
+        rectHeight
     };
 
     const SDL_Rect *cursorRectPointer = &cursorRect;
@@ -139,17 +140,6 @@ int main(int argc,char *argv[]){
     sdlInit(&app);
 
     int *buffer = malloc((S_WIDTH*S_HEIGHT)*sizeof(int));
-
-    int offset;
-    for(int x = 0; x < S_WIDTH; x++){
-        for(int y = 0; y < S_HEIGHT; y++){
-            offset = x * S_WIDTH + y;
-            SDL_SetRenderDrawColor(app.renderer, 0, 0, *(buffer+offset), 255);
-            SDL_RenderDrawPoint(app.renderer, x, y);
-        }
-
-    }
-
  
     if(buffer == NULL){
         exit(1);
@@ -159,24 +149,25 @@ int main(int argc,char *argv[]){
         if(focusChange == 1){
             reCalc(buffer);
             focusChange = 0;
+
        }
 
         int offset;
-        for(int x = 0; x < S_WIDTH; x++){
-            for(int y = 0; y < S_HEIGHT; y++){
-                offset = x * S_WIDTH + y;
-                SDL_SetRenderDrawColor(app.renderer, 0, 0, *(buffer+offset), 255);
-                SDL_RenderDrawPoint(app.renderer, x, y);
+        int *bc = buffer;
+            for(int x = 0; x < S_WIDTH; x++){
+                for(int y = 0; y < S_HEIGHT; y++){
+                    offset = x * S_WIDTH + y;
+                    SDL_SetRenderDrawColor(app.renderer, *(bc++), 0, 0, 255);
+                    SDL_RenderDrawPoint(app.renderer, x, y);
+                }
             }
- 
-        }
 
         while (SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT){
                 quit = 1;
             }else if(event.type == SDL_MOUSEMOTION){
                 cursorRect.x = event.motion.x - rectWidth/2; 
-                cursorRect.y = event.motion.y - rectWidth/2; 
+                cursorRect.y = event.motion.y - rectHeight/2; 
             }else if(event.type == SDL_KEYDOWN){ 
                 focusChange = 1;
                 if(event.key.keysym.sym == SDLK_q){
@@ -191,7 +182,11 @@ int main(int argc,char *argv[]){
                     xsu = temp_xsu;
                     ysl = temp_ysl;
                     ysu = temp_ysu;
-                    focusChange = 1;
+                }else if(event.key.keysym.sym == SDLK_r){
+                    xsl = X_LOW;
+                    xsu = X_UP;
+                    ysl = Y_LOW;
+                    ysu = Y_UP;
                 }else if(event.key.keysym.sym == SDLK_UP){
                     moveArrows('u');
                 }else if(event.key.keysym.sym == SDLK_DOWN){
@@ -203,7 +198,7 @@ int main(int argc,char *argv[]){
                 }
             }
         }
-
+    
         SDL_SetRenderDrawColor(app.renderer, 255, 255, 255, 255);
         SDL_RenderDrawRect(app.renderer, cursorRectPointer); 
         
